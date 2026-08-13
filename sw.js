@@ -1,5 +1,5 @@
 /* Denník 5D — offline cache */
-var CACHE = "dennik5d-v1";
+var CACHE = "dennik5d-v2";
 var ASSETS = [
   "./",
   "./index.html",

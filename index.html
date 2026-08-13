@@ -238,7 +238,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--go);outline-off
   <h1 id="detNm">—</h1>
   <div class="sub" id="detSub"></div>
   <div id="detList"></div>
-  <div class="linkrow"><button class="link danger" id="delSess">Zmazať tento tréning</button></div>
+  <div class="linkrow">
+    <button class="link" id="editSess">Upraviť tréning</button>
+    <button class="link danger" id="delSess">Zmazať</button>
+  </div>
 </div>
 
 <!-- rest timer -->
@@ -356,10 +359,11 @@ function nice(n){
   return (Math.round(n*100)/100).toString().replace(".",",");
 }
 
-/* posledné 2 záznamy daného cviku, najnovší prvý */
-function historyOf(exId,limit){
+/* posledné záznamy daného cviku, najnovší prvý; skipId vynechá upravovaný tréning */
+function historyOf(exId,limit,skipId){
   var out=[], s=load().sessions;
   for(var i=s.length-1;i>=0;i--){
+    if(skipId && s[i].id===skipId) continue;
     var e=s[i].entries[exId];
     if(e&&e.length){ out.push({date:s[i].date,sets:e}); if(out.length>=(limit||2)) break; }
   }
@@ -368,7 +372,8 @@ function historyOf(exId,limit){
 
 /* ============ PROGRESIA ============ */
 function suggest(ex){
-  var h=historyOf(ex.id,2);
+  var skip = (cur && cur._edit) ? cur.id : null;
+  var h=historyOf(ex.id,2,skip);
   if(!h.length) return {kind:"first",w:"",reps:ex.lo};
   var done=h[0].sets.filter(function(s){return num(s.r)>0});
   if(!done.length) return {kind:"first",w:"",reps:ex.lo};
@@ -479,11 +484,44 @@ function startSession(key){
   renderSession();
   show("sess");
 }
+function editSession(sessId){
+  var s=load().sessions, src=null;
+  for(var i=0;i<s.length;i++) if(s[i].id===sessId) src=s[i];
+  if(!src) return;
+  var d=dayByKey(src.day);
+  cur={id:src.id,date:src.date,day:src.day,entries:{},_edit:true};
+  d.ex.forEach(function(ex){
+    var saved=src.entries[ex.id]||[], arr=[];
+    saved.forEach(function(x){
+      arr.push({w:nice(num(x.w)),r:String(x.r),rir:x.rir||"",done:true});
+    });
+    /* doplň prázdne riadky do počtu sérií z plánu, nech vieš dopísať zabudnutú sériu */
+    while(arr.length<ex.s) arr.push({w:arr.length?arr[arr.length-1].w:"",r:"",rir:"",done:false});
+    cur.entries[ex.id]=arr;
+  });
+  renderSession();
+  show("sess");
+}
+function changeDate(){
+  if(!cur) return;
+  var d=new Date(cur.date);
+  var def=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);
+  var v=prompt("Dátum tréningu (RRRR-MM-DD):",def);
+  if(!v) return;
+  var p=v.trim().split("-");
+  if(p.length!==3){ alert("Zadaj dátum v tvare 2026-08-13."); return; }
+  var nd=new Date(+p[0],+p[1]-1,+p[2],12,0,0);
+  if(isNaN(nd.getTime())){ alert("Taký dátum neexistuje."); return; }
+  cur.date=nd.toISOString();
+  $("sessDate").textContent=fmtDate(cur.date)+"  ·  upraviť";
+}
 function renderSession(){
   var d=dayByKey(cur.day);
-  $("sessDate").textContent=fmtDate(cur.date);
-  $("sessNm").textContent=d.name;
-  $("sessSub").textContent=d.sub;
+  $("sessDate").textContent=fmtDate(cur.date)+(cur._edit?"  ·  upraviť":"");
+  $("sessDate").onclick=cur._edit?changeDate:null;
+  $("sessDate").style.cursor=cur._edit?"pointer":"";
+  $("sessNm").textContent=d.name+(cur._edit?" ✎":"");
+  $("sessSub").textContent=cur._edit?"Úprava uloženého tréningu":d.sub;
   var list=$("exList"); list.innerHTML="";
   d.ex.forEach(function(ex,i){ list.appendChild(exCard(ex,i+1)) });
 }
@@ -574,12 +612,20 @@ function finishSession(){
     var arr=cur.entries[id].filter(function(s){return num(s.r)>0});
     if(arr.length){ clean[id]=arr.map(function(s){return {w:num(s.w),r:num(s.r),rir:s.rir||""}}); kept++; }
   }
+  var sessions=load().sessions, i;
   if(!kept){
-    if(!confirm("Nezapísal si ani jednu sériu. Zahodiť tréning?")) return;
-    stopTimer(); show("home"); renderHome(); return;
+    if(cur._edit){
+      if(!confirm("Tréning nemá ani jednu sériu. Zmazať ho?")) return;
+      for(i=0;i<sessions.length;i++) if(sessions[i].id===cur.id){ sessions.splice(i,1); break; }
+      save();
+    } else if(!confirm("Nezapísal si ani jednu sériu. Zahodiť tréning?")) return;
+    stopTimer(); cur=null; renderHome(); show("home"); return;
   }
-  cur.entries=clean;
-  load().sessions.push(cur);
+  var rec={id:cur.id,date:cur.date,day:cur.day,entries:clean};
+  var found=false;
+  for(i=0;i<sessions.length;i++) if(sessions[i].id===rec.id){ sessions[i]=rec; found=true; break; }
+  if(!found) sessions.push(rec);
+  sessions.sort(function(a,b){ return new Date(a.date)-new Date(b.date) });
   save(); stopTimer(); cur=null;
   renderHome(); show("home");
 }
@@ -609,6 +655,7 @@ function renderDetail(){
       arr.map(function(x){return nice(x.w)+" × "+x.r+(x.rir?" @"+x.rir:"")}).join("   ·   ")+'</div>';
     l.appendChild(div);
   });
+  $("editSess").onclick=function(){ editSession(curDet) };
   $("delSess").onclick=function(){
     if(!confirm("Zmazať tento tréning?")) return;
     var ss=load().sessions;
@@ -704,10 +751,14 @@ function renderBar(){
   if(view==="home"){ $("bar").classList.add("hide"); return; }
   $("bar").classList.remove("hide");
   if(view==="sess"){
+    var ed=cur&&cur._edit;
     add("Späť",function(){
-      if(confirm("Opustiť tréning bez uloženia?")){ stopTimer(); cur=null; renderHome(); show("home") }
+      if(confirm(ed?"Zahodiť zmeny?":"Opustiť tréning bez uloženia?")){
+        stopTimer(); var back=ed?"det":"home"; cur=null;
+        if(back==="det"){ renderDetail(); show("det") } else { renderHome(); show("home") }
+      }
     },true);
-    add("Uložiť tréning",finishSession);
+    add(ed?"Uložiť zmeny":"Uložiť tréning",finishSession);
   } else if(view==="hist"){
     add("Späť",function(){ renderHome(); show("home") },true);
   } else if(view==="det"){
