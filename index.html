@@ -183,6 +183,19 @@ body.nobar{padding-bottom:36px}
   text-transform:uppercase;font-weight:600;
 }
 .addset:active{background:var(--surf2)}
+.noteinp{
+  margin-top:8px;width:100%;background:transparent;
+  border:1px solid var(--line);border-radius:9px;
+  padding:10px 11px;font-size:13px;line-height:1.4;
+}
+.noteinp::placeholder{color:var(--dim)}
+.noteinp:focus{outline:none;border-color:var(--go);background:var(--surf2)}
+.prevnote{
+  padding:0 15px 12px;font-size:12px;color:var(--go);
+  line-height:1.45;display:flex;gap:6px;
+}
+.prevnote span:first-child{color:var(--dim);flex:0 0 auto}
+.detail .dnote{font-size:12px;color:var(--go);margin-top:6px;line-height:1.45}
 button:focus-visible,input:focus-visible{outline:2px solid var(--go);outline-offset:2px}
 @media (prefers-reduced-motion:no-preference){
   .card{animation:in .26s ease both}
@@ -365,7 +378,10 @@ function historyOf(exId,limit,skipId){
   for(var i=s.length-1;i>=0;i--){
     if(skipId && s[i].id===skipId) continue;
     var e=s[i].entries[exId];
-    if(e&&e.length){ out.push({date:s[i].date,sets:e}); if(out.length>=(limit||2)) break; }
+    if(e&&e.length){
+      out.push({date:s[i].date,sets:e,note:(s[i].notes||{})[exId]||""});
+      if(out.length>=(limit||2)) break;
+    }
   }
   return out;
 }
@@ -475,7 +491,7 @@ function histRow(sess){
 /* ============ TRÉNING ============ */
 function startSession(key){
   var d=dayByKey(key);
-  cur={id:"s"+Date.now(),date:new Date().toISOString(),day:key,entries:{}};
+  cur={id:"s"+Date.now(),date:new Date().toISOString(),day:key,entries:{},notes:{}};
   d.ex.forEach(function(ex){
     var arr=[],sg=suggest(ex);
     for(var i=0;i<ex.s;i++) arr.push({w:sg.w===""?"":nice(sg.w),r:"",rir:"",done:false});
@@ -489,7 +505,8 @@ function editSession(sessId){
   for(var i=0;i<s.length;i++) if(s[i].id===sessId) src=s[i];
   if(!src) return;
   var d=dayByKey(src.day);
-  cur={id:src.id,date:src.date,day:src.day,entries:{},_edit:true};
+  cur={id:src.id,date:src.date,day:src.day,entries:{},notes:{},_edit:true};
+  for(var k in (src.notes||{})) cur.notes[k]=src.notes[k];
   d.ex.forEach(function(ex){
     var saved=src.entries[ex.id]||[], arr=[];
     saved.forEach(function(x){
@@ -588,7 +605,26 @@ function exCard(ex,idx){
     box.insertBefore(addRow(st),add);
   };
   box.appendChild(add);
+
+  var ni=document.createElement("input");
+  ni.className="noteinp"; ni.type="text"; ni.maxLength=140;
+  ni.placeholder="Poznámka k cviku…";
+  ni.value=(cur.notes&&cur.notes[ex.id])||"";
+  ni.setAttribute("aria-label","Poznámka k cviku "+ex.n);
+  ni.oninput=function(){
+    if(!cur.notes) cur.notes={};
+    cur.notes[ex.id]=ni.value;
+  };
+  box.appendChild(ni);
   card.appendChild(box);
+
+  if(sg.prev&&sg.prev.note){
+    var pn=document.createElement("div");
+    pn.className="prevnote";
+    pn.innerHTML='<span>✎</span><span></span>';
+    pn.lastChild.textContent=sg.prev.note;
+    card.appendChild(pn);
+  }
 
   if(sg.prev){
     var p=document.createElement("div");
@@ -621,7 +657,11 @@ function finishSession(){
     } else if(!confirm("Nezapísal si ani jednu sériu. Zahodiť tréning?")) return;
     stopTimer(); cur=null; renderHome(); show("home"); return;
   }
-  var rec={id:cur.id,date:cur.date,day:cur.day,entries:clean};
+  var rec={id:cur.id,date:cur.date,day:cur.day,entries:clean,notes:{}};
+  for(var nid in (cur.notes||{})){
+    var t=String(cur.notes[nid]||"").trim();
+    if(t && clean[nid]) rec.notes[nid]=t;
+  }
   var found=false;
   for(i=0;i<sessions.length;i++) if(sessions[i].id===rec.id){ sessions[i]=rec; found=true; break; }
   if(!found) sessions.push(rec);
@@ -651,8 +691,15 @@ function renderDetail(){
     var arr=sess.entries[ex.id]; if(!arr) return;
     var div=document.createElement("div");
     div.className="detail";
-    div.innerHTML='<div class="dn">'+ex.n+'</div><div class="ds">'+
-      arr.map(function(x){return nice(x.w)+" × "+x.r+(x.rir?" @"+x.rir:"")}).join("   ·   ")+'</div>';
+    div.innerHTML='<div class="dn"></div><div class="ds"></div>';
+    div.firstChild.textContent=ex.n;
+    div.childNodes[1].textContent=arr.map(function(x){return nice(x.w)+" × "+x.r+(x.rir?" @"+x.rir:"")}).join("   ·   ");
+    var nt=(sess.notes||{})[ex.id];
+    if(nt){
+      var nd=document.createElement("div");
+      nd.className="dnote"; nd.textContent="✎ "+nt;
+      div.appendChild(nd);
+    }
     l.appendChild(div);
   });
   $("editSess").onclick=function(){ editSession(curDet) };
@@ -668,14 +715,16 @@ function renderDetail(){
 function exportCSV(){
   var s=load().sessions;
   if(!s.length){ alert("Nie je čo exportovať."); return; }
-  var rows=["datum;den;cvik;seria;kg;opakovania;rir"];
+  var rows=["datum;den;cvik;seria;kg;opakovania;rir;poznamka"];
+  function q(s){ return '"'+String(s==null?"":s).replace(/[\r\n]+/g," ").replace(/"/g,'""')+'"' }
   s.forEach(function(sess){
     var d=dayByKey(sess.day);
     (d?d.ex:[]).forEach(function(ex){
       var arr=sess.entries[ex.id]; if(!arr) return;
+      var nt=(sess.notes||{})[ex.id]||"";
       arr.forEach(function(x,i){
-        rows.push([sess.date.slice(0,10),d.name,'"'+ex.n+'"',i+1,
-          String(x.w).replace(".",","),x.r,x.rir].join(";"));
+        rows.push([sess.date.slice(0,10),d.name,q(ex.n),i+1,
+          String(x.w).replace(".",","),x.r,x.rir,q(nt)].join(";"));
       });
     });
   });
