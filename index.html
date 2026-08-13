@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<title>Denník 5D</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Denník 5D">
+<meta name="theme-color" content="#14181A">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{
+  --bg:#14181A; --surf:#1C2225; --surf2:#242C30; --line:#303A3E;
+  --chalk:#E8EBE6; --mut:#7F8D8F; --dim:#5A6669;
+  --go:#E8B93B; --up:#56A96B; --warn:#C4453A;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  --pad:16px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--chalk); font-family:var(--sans);
+  font-size:16px; line-height:1.45;
+  padding-bottom:calc(96px + env(safe-area-inset-bottom));
+  -webkit-text-size-adjust:100%;
+}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------- shell ---------- */
+.wrap{max-width:640px;margin:0 auto;padding:0 var(--pad)}
+.top{padding-top:calc(20px + env(safe-area-inset-top))}
+.eyebrow{
+  font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--mut);font-weight:600;
+}
+h1{
+  font-size:34px;font-weight:800;letter-spacing:-.025em;
+  margin:2px 0 2px;line-height:1.05;
+}
+.sub{color:var(--mut);font-size:14px;margin-bottom:22px}
+
+/* ---------- day picker ---------- */
+.next{
+  background:var(--surf);border:1px solid var(--line);border-radius:14px;
+  padding:16px;margin-bottom:10px;display:block;width:100%;text-align:left;
+}
+.next .lbl{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--go);font-weight:700}
+.next .nm{font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:4px}
+.next .mt{color:var(--mut);font-size:13px;margin-top:2px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:26px}
+.dbtn{
+  background:var(--surf);border:1px solid var(--line);border-radius:12px;
+  padding:13px 14px;text-align:left;
+}
+.dbtn .nm{font-weight:700;font-size:15px;letter-spacing:.01em}
+.dbtn .mt{color:var(--dim);font-size:11px;font-family:var(--mono);margin-top:1px}
+.dbtn:active{background:var(--surf2)}
+
+/* ---------- exercise card ---------- */
+.card{
+  background:var(--surf);border:1px solid var(--line);border-radius:14px;
+  margin-bottom:10px;overflow:hidden;
+}
+.chead{padding:14px 15px 12px;display:flex;gap:11px;align-items:flex-start}
+.idx{
+  font-family:var(--mono);font-size:12px;color:var(--dim);
+  padding-top:3px;min-width:16px;font-weight:600;
+}
+.cname{font-weight:700;font-size:16px;letter-spacing:-.01em;line-height:1.25}
+.cmeta{font-family:var(--mono);font-size:12px;color:var(--mut);margin-top:3px}
+.cnote{font-size:12px;color:var(--dim);margin-top:5px;line-height:1.4}
+
+/* signature: rep ladder */
+.ladder{display:flex;align-items:center;gap:7px;margin:11px 15px 0}
+.rungs{display:flex;gap:3px;flex:1}
+.rung{height:5px;flex:1;border-radius:2px;background:var(--line)}
+.rung.on{background:var(--mut)}
+.rung.top{background:var(--go)}
+.ltxt{
+  font-family:var(--mono);font-size:11px;color:var(--mut);
+  white-space:nowrap;letter-spacing:.02em;
+}
+.ltxt.up{color:var(--up);font-weight:600}
+.ltxt.stall{color:var(--warn)}
+
+/* set rows */
+.sets{padding:11px 15px 14px}
+.srow{display:grid;grid-template-columns:1fr 1fr 1fr 46px;gap:6px;margin-top:6px;align-items:center}
+.shead{
+  display:grid;grid-template-columns:1fr 1fr 1fr 46px;gap:6px;
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);
+  padding:0 2px 2px;font-weight:600;
+}
+.shead span:nth-child(4){text-align:center}
+.fld{
+  background:var(--surf2);border:1px solid transparent;border-radius:9px;
+  padding:11px 4px;text-align:center;width:100%;
+  font-family:var(--mono);font-size:16px;font-variant-numeric:tabular-nums;
+}
+.fld::placeholder{color:var(--dim)}
+.fld:focus{outline:none;border-color:var(--go);background:#2B3438}
+.tick{
+  border-radius:9px;background:var(--surf2);height:42px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;color:var(--dim);border:1px solid transparent;
+}
+.srow.done .tick{background:var(--up);color:#0F1A12;font-weight:800}
+.srow.done .fld{opacity:.55}
+
+/* ---------- bars ---------- */
+.bar{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  background:rgba(20,24,26,.94);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);
+  padding:11px var(--pad) calc(11px + env(safe-area-inset-bottom));
+}
+.barin{max-width:640px;margin:0 auto;display:flex;gap:9px;align-items:center}
+.btn{
+  flex:1;background:var(--go);color:#161206;border-radius:11px;
+  padding:14px;font-weight:800;font-size:15px;text-align:center;letter-spacing:.01em;
+}
+.btn.ghost{background:var(--surf2);color:var(--chalk);flex:0 0 auto;padding:14px 18px}
+.btn:active{opacity:.8}
+
+/* rest timer */
+.timer{
+  position:fixed;left:var(--pad);right:var(--pad);z-index:50;
+  bottom:calc(84px + env(safe-area-inset-bottom));
+  max-width:608px;margin:0 auto;
+  background:var(--surf2);border:1px solid var(--line);border-radius:12px;
+  padding:10px 13px;display:none;align-items:center;gap:12px;
+  box-shadow:0 8px 28px rgba(0,0,0,.5);
+}
+.timer.on{display:flex}
+.timer .t{font-family:var(--mono);font-size:22px;font-weight:700;letter-spacing:.01em}
+.timer .t.zero{color:var(--up)}
+.timer .lb{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);flex:1;font-weight:600}
+.timer button{
+  background:var(--surf);border:1px solid var(--line);border-radius:8px;
+  padding:7px 11px;font-size:13px;font-family:var(--mono);
+}
+
+/* ---------- history ---------- */
+.hrow{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  background:var(--surf);border:1px solid var(--line);border-radius:12px;
+  padding:13px 15px;margin-bottom:8px;width:100%;text-align:left;
+}
+.hrow .d{font-family:var(--mono);font-size:11px;color:var(--mut);letter-spacing:.04em}
+.hrow .n{font-weight:700;font-size:16px;margin-top:1px}
+.hrow .v{font-family:var(--mono);font-size:13px;color:var(--go);text-align:right;white-space:nowrap}
+.hrow .v small{display:block;color:var(--dim);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+
+.empty{
+  border:1px dashed var(--line);border-radius:14px;padding:26px 20px;
+  text-align:center;color:var(--mut);font-size:14px;line-height:1.5;
+}
+.sect{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);font-weight:600;margin:24px 0 9px}
+.detail{background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:8px}
+.detail .dn{font-weight:700;font-size:14px}
+.detail .ds{font-family:var(--mono);font-size:13px;color:var(--mut);margin-top:4px}
+.warnbox{
+  background:rgba(196,69,58,.12);border:1px solid rgba(196,69,58,.4);
+  border-radius:11px;padding:12px 14px;font-size:13px;color:#EAA9A3;margin-bottom:14px;line-height:1.45;
+}
+.linkrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.link{
+  background:var(--surf);border:1px solid var(--line);border-radius:10px;
+  padding:11px 15px;font-size:14px;font-weight:600;
+}
+.link.danger{color:#E08C84}
+.hide{display:none !important}
+body.nobar{padding-bottom:36px}
+.addset{
+  margin-top:9px;width:100%;border:1px dashed var(--line);border-radius:9px;
+  padding:9px;font-size:12px;color:var(--mut);letter-spacing:.1em;
+  text-transform:uppercase;font-weight:600;
+}
+.addset:active{background:var(--surf2)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--go);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){
+  .card{animation:in .26s ease both}
+  @keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ HOME ============ -->
+<div id="v-home" class="wrap top">
+  <div class="eyebrow" id="todayLbl">—</div>
+  <h1>Denník</h1>
+  <div class="sub">5-dňový split · dvojitá progresia</div>
+  <div id="storeWarn"></div>
+  <button class="next" id="nextBtn">
+    <div class="lbl">Ďalej na rade</div>
+    <div class="nm" id="nextNm">PUSH</div>
+    <div class="mt" id="nextMt"></div>
+  </button>
+  <div class="grid" id="dayGrid"></div>
+  <div class="sect">Posledné tréningy</div>
+  <div id="homeHist"></div>
+  <div class="linkrow">
+    <button class="link" id="toHist">Celá história</button>
+    <button class="link" id="toExport">Export CSV</button>
+  </div>
+</div>
+
+<!-- ============ SESSION ============ -->
+<div id="v-sess" class="wrap top hide">
+  <div class="eyebrow" id="sessDate">—</div>
+  <h1 id="sessNm">PUSH</h1>
+  <div class="sub" id="sessSub"></div>
+  <div id="exList"></div>
+</div>
+
+<!-- ============ HISTORY ============ -->
+<div id="v-hist" class="wrap top hide">
+  <div class="eyebrow">Záznamy</div>
+  <h1>História</h1>
+  <div class="sub" id="histSub"></div>
+  <div id="histList"></div>
+  <div class="linkrow">
+    <button class="link" id="toExport2">Export CSV</button>
+    <button class="link danger" id="wipe">Vymazať všetko</button>
+  </div>
+</div>
+
+<!-- ============ DETAIL ============ -->
+<div id="v-det" class="wrap top hide">
+  <div class="eyebrow" id="detDate">—</div>
+  <h1 id="detNm">—</h1>
+  <div class="sub" id="detSub"></div>
+  <div id="detList"></div>
+  <div class="linkrow"><button class="link danger" id="delSess">Zmazať tento tréning</button></div>
+</div>
+
+<!-- rest timer -->
+<div class="timer" id="timer">
+  <div class="t mono" id="tval">2:30</div>
+  <div class="lb">Pauza</div>
+  <button id="tplus">+30s</button>
+  <button id="tstop">Stop</button>
+</div>
+
+<!-- bottom bar -->
+<div class="bar" id="bar"><div class="barin" id="barin"></div></div>
+
+<script>
+"use strict";
+
+/* ============ PLÁN ============ */
+var PLAN = [
+ {key:"push", name:"PUSH", sub:"Prsia · Bočné ramená · Biceps", ex:[
+  {id:"pu1",n:"Incline DB Press (15–30°)",s:3,lo:6,hi:8,rir:"2–3 RIR",inc:2,rest:180,note:"Hlavný cvik. Jednoručky dole až po úroveň hrudníka."},
+  {id:"pu2",n:"Chest Press / Bench / Multipress",s:2,lo:8,hi:10,rir:"1–2 RIR",inc:2.5,rest:150,note:"Stabilný, konštantný odpor."},
+  {id:"pu3",n:"Chest Fly (kladka alebo stroj)",s:2,lo:10,hi:15,rir:"0–1 RIR",inc:2.5,rest:90,note:"Hlboký strečing, lakte mierne pokrčené a fixné."},
+  {id:"pu4",n:"Lateral Raise s DB v sede",s:3,lo:10,hi:15,rir:"0–1 RIR",inc:2,rest:90,note:"Trup fixný, žiadne švihanie."},
+  {id:"pu5",n:"Lateral Raise na kladke",s:1,lo:12,hi:20,rir:"do zlyhania",inc:1.25,rest:90,note:"Kladka drží napätie aj dole."},
+  {id:"pu6",n:"Reverse Fly",s:2,lo:12,hi:20,rir:"0–1 RIR",inc:2.5,rest:75,note:"Zadné ramená, ľahká váha."},
+  {id:"pu7",n:"Incline DB Curl",s:2,lo:8,hi:12,rir:"0–1 RIR",inc:2,rest:90,note:"Lavička 45°, ramená za telom = maximálny strečing."},
+  {id:"pu8",n:"Preacher / Cable Curl",s:2,lo:10,hi:15,rir:"0–1 RIR",inc:2.5,rest:90,note:"Záťaž v strednej fáze pohybu."}
+ ]},
+ {key:"pull", name:"PULL", sub:"Chrbát · Zadné ramená · Triceps", ex:[
+  {id:"pl1",n:"Lat Pull Down / Zhyby",s:3,lo:6,hi:10,rir:"2–3 RIR",inc:2.5,rest:180,note:"Hlavný cvik. Pri 10+ zhyboch pridaj závažie."},
+  {id:"pl2",n:"DB Chest Supported Row",s:3,lo:8,hi:12,rir:"1–2 RIR",inc:2,rest:150,note:"Lakte pri tele, ťah k bruchu."},
+  {id:"pl3",n:"Straight-Arm Pulldown",s:2,lo:10,hi:15,rir:"0–1 RIR",inc:2.5,rest:90,note:"Izolácia širokého chrbtového svalu."},
+  {id:"pl4",n:"Wide Grip Row",s:2,lo:10,hi:15,rir:"1–2 RIR",inc:2.5,rest:120,note:"Lakte od tela, ťah k hrudníku. Vršok chrbta."},
+  {id:"pl5",n:"Face Pull",s:2,lo:12,hi:20,rir:"0–1 RIR",inc:2.5,rest:75,note:"Zadné ramená."},
+  {id:"pl6",n:"Overhead Triceps Extension",s:3,lo:8,hi:12,rir:"0–1 RIR",inc:2.5,rest:90,note:"Dlhá hlava tricepsu — jediná poloha, kde ju natiahneš."},
+  {id:"pl7",n:"Dips alebo Pushdown",s:2,lo:8,hi:15,rir:"do zlyhania",inc:2.5,rest:120,note:"Posledná séria do zlyhania."}
+ ]},
+ {key:"legs", name:"LEGS", sub:"Drep-dominantný · Kvadricepsy", ex:[
+  {id:"lg1",n:"Drep (činka alebo hack)",s:3,lo:5,hi:8,rir:"2–3 RIR",inc:5,rest:240,note:"Hlavný cvik. Pauza 3–4 min."},
+  {id:"lg2",n:"Leg Press (nohy nižšie)",s:2,lo:8,hi:12,rir:"1–2 RIR",inc:5,rest:180,note:"Quad bias. Hlboko, kolená k hrudníku."},
+  {id:"lg3",n:"Leg Extension",s:2,lo:10,hi:15,rir:"0–1 RIR",inc:2.5,rest:90,note:"Predkopávanie."},
+  {id:"lg4",n:"Zakopávanie v SEDE",s:3,lo:8,hi:12,rir:"0–1 RIR",inc:2.5,rest:90,note:"Nie na stoji — v sede sú hamstringy natiahnuté."},
+  {id:"lg5",n:"Hip Thrust",s:2,lo:8,hi:12,rir:"1–2 RIR",inc:5,rest:150,note:"Extenzia v bedre, pauza hore 1 s."},
+  {id:"lg6",n:"Výpon na lýtka v stoji",s:3,lo:8,hi:12,rir:"0–1 RIR",inc:2.5,rest:90,note:"2 s pauza v spodnej strečovanej polohe."},
+  {id:"lg7",n:"Brucho",s:2,lo:10,hi:20,rir:"do zlyhania",inc:2.5,rest:75,note:"So záťažou, nie donekonečna."}
+ ]},
+ {key:"upper", name:"UPPER", sub:"Celé horné telo · doplnkové uhly", ex:[
+  {id:"up1",n:"DB Shoulder Press",s:3,lo:6,hi:10,rir:"2–3 RIR",inc:2,rest:180,note:"Hlavný cvik."},
+  {id:"up2",n:"Chest Press (iný uhol než v PUSH)",s:3,lo:8,hi:12,rir:"1–2 RIR",inc:2.5,rest:150,note:"Ak si v PUSH robil incline, tu rovná lavička."},
+  {id:"up3",n:"Lat Pull Down (iný hmat)",s:3,lo:8,hi:12,rir:"1–2 RIR",inc:2.5,rest:150,note:"Úzky alebo neutrálny hmat."},
+  {id:"up4",n:"Wide Grip Row",s:2,lo:10,hi:15,rir:"1–2 RIR",inc:2.5,rest:120,note:"Vršok chrbta."},
+  {id:"up5",n:"Lateral Raise v sede",s:3,lo:10,hi:15,rir:"0–1 RIR",inc:2,rest:90,note:"Druhá dávka bočných ramien v týždni."},
+  {id:"up6",n:"Triceps Pushdown",s:2,lo:10,hi:15,rir:"0–1 RIR",inc:2.5,rest:90,note:""},
+  {id:"up7",n:"Cable Curl",s:2,lo:10,hi:15,rir:"0–1 RIR",inc:2.5,rest:90,note:""}
+ ]},
+ {key:"lower", name:"LOWER", sub:"Hinge-dominantný · Hamstringy", ex:[
+  {id:"lo1",n:"RDL",s:3,lo:6,hi:10,rir:"2–3 RIR",inc:5,rest:210,note:"Hlavný cvik. Chrbát rovný, strečing v hamstringoch."},
+  {id:"lo2",n:"Bulharský drep",s:2,lo:8,hi:12,rir:"1–2 RIR",inc:2,rest:150,note:"Mierny predklon, váha do kolena."},
+  {id:"lo3",n:"Zakopávanie v sede",s:2,lo:10,hi:15,rir:"0–1 RIR",inc:2.5,rest:90,note:""},
+  {id:"lo4",n:"Leg Press / Hack Squat",s:2,lo:10,hi:15,rir:"1–2 RIR",inc:5,rest:150,note:"Kvadricepsy, ľahšie než v LEGS."},
+  {id:"lo5",n:"Abdukcia (nohy OD seba)",s:2,lo:12,hi:20,rir:"0–1 RIR",inc:2.5,rest:75,note:"Gluteus medius."},
+  {id:"lo6",n:"Addukcia (nohy K sebe)",s:2,lo:12,hi:20,rir:"0–1 RIR",inc:2.5,rest:75,note:"Prísuvné svaly stehna."},
+  {id:"lo7",n:"Výpon na lýtka v sede",s:3,lo:10,hi:15,rir:"0–1 RIR",inc:2.5,rest:90,note:"V sede zapája soleus."},
+  {id:"lo8",n:"Brucho",s:2,lo:10,hi:20,rir:"do zlyhania",inc:2.5,rest:75,note:""}
+ ]}
+];
+var DAYS_SK=["Nedeľa","Pondelok","Utorok","Streda","Štvrtok","Piatok","Sobota"];
+var MON_SK=["jan","feb","mar","apr","máj","jún","júl","aug","sep","okt","nov","dec"];
+
+/* ============ ÚLOŽISKO ============ */
+var KEY="tp5.v1", memory=null, storageOK=true;
+function load(){
+  if(memory) return memory;
+  try{
+    var raw=localStorage.getItem(KEY);
+    memory=raw?JSON.parse(raw):{sessions:[]};
+  }catch(e){ storageOK=false; memory={sessions:[]}; }
+  if(!memory.sessions) memory.sessions=[];
+  return memory;
+}
+function save(){
+  try{ localStorage.setItem(KEY,JSON.stringify(memory)); }
+  catch(e){ storageOK=false; renderWarn(); }
+}
+function renderWarn(){
+  var el=document.getElementById("storeWarn");
+  if(!el) return;
+  el.innerHTML = storageOK ? "" :
+    '<div class="warnbox">Tento prehliadač neukladá dáta natrvalo. Zápisy vydržia len do zavretia stránky. Nahoď apku na GitHub Pages a pridaj ju na plochu — potom bude ukladanie fungovať.</div>';
+}
+
+/* ============ POMOCNÍCI ============ */
+function $(id){return document.getElementById(id)}
+function dayByKey(k){for(var i=0;i<PLAN.length;i++) if(PLAN[i].key===k) return PLAN[i]; return null}
+function exById(id){
+  for(var i=0;i<PLAN.length;i++) for(var j=0;j<PLAN[i].ex.length;j++)
+    if(PLAN[i].ex[j].id===id) return PLAN[i].ex[j];
+  return null;
+}
+function fmtDate(iso){
+  var d=new Date(iso);
+  return DAYS_SK[d.getDay()]+" "+d.getDate()+". "+MON_SK[d.getMonth()]+" "+d.getFullYear();
+}
+function fmtShort(iso){
+  var d=new Date(iso);
+  return d.getDate()+". "+MON_SK[d.getMonth()]+" "+String(d.getFullYear()).slice(2);
+}
+function num(v){
+  if(v===null||v===undefined) return 0;
+  var s=String(v).replace(",",".").trim();
+  var n=parseFloat(s);
+  return isFinite(n)?n:0;
+}
+function nice(n){
+  return (Math.round(n*100)/100).toString().replace(".",",");
+}
+
+/* posledné 2 záznamy daného cviku, najnovší prvý */
+function historyOf(exId,limit){
+  var out=[], s=load().sessions;
+  for(var i=s.length-1;i>=0;i--){
+    var e=s[i].entries[exId];
+    if(e&&e.length){ out.push({date:s[i].date,sets:e}); if(out.length>=(limit||2)) break; }
+  }
+  return out;
+}
+
+/* ============ PROGRESIA ============ */
+function suggest(ex){
+  var h=historyOf(ex.id,2);
+  if(!h.length) return {kind:"first",w:"",reps:ex.lo};
+  var done=h[0].sets.filter(function(s){return num(s.r)>0});
+  if(!done.length) return {kind:"first",w:"",reps:ex.lo};
+
+  var w=0, i;
+  for(i=0;i<done.length;i++) if(num(done[i].w)>w) w=num(done[i].w);
+
+  var allTop = done.length>=ex.s;
+  var minReps=999;
+  for(i=0;i<done.length;i++){
+    if(num(done[i].w)<w || num(done[i].r)<ex.hi) allTop=false;
+    if(num(done[i].r)<minReps) minReps=num(done[i].r);
+  }
+  if(allTop) return {kind:"up",w:w+ex.inc,reps:ex.lo,prev:h[0],best:ex.hi};
+
+  /* zaseknutie: dva tréningy po sebe rovnaká váha aj rovnaký súčet opakovaní */
+  var stall=false;
+  if(h.length>1){
+    var p=h[1].sets.filter(function(s){return num(s.r)>0});
+    if(p.length){
+      var pw=0,ps=0,cs=0;
+      for(i=0;i<p.length;i++){ if(num(p[i].w)>pw) pw=num(p[i].w); ps+=num(p[i].r); }
+      for(i=0;i<done.length;i++) cs+=num(done[i].r);
+      if(pw===w && cs<=ps) stall=true;
+    }
+  }
+  return {kind:stall?"stall":"hold",w:w,reps:Math.min(ex.hi,minReps+1),prev:h[0],best:minReps};
+}
+
+/* ============ NAVIGÁCIA ============ */
+var view="home", cur=null, curDet=null;
+function show(v){
+  view=v;
+  ["home","sess","hist","det"].forEach(function(k){
+    $("v-"+k).classList.toggle("hide",k!==v);
+  });
+  document.body.classList.toggle("nobar",v==="home");
+  window.scrollTo(0,0);
+  renderBar();
+}
+
+/* ============ HOME ============ */
+function nextDayKey(){
+  var s=load().sessions;
+  if(!s.length) return PLAN[0].key;
+  var lastKey=s[s.length-1].day;
+  for(var i=0;i<PLAN.length;i++) if(PLAN[i].key===lastKey) return PLAN[(i+1)%PLAN.length].key;
+  return PLAN[0].key;
+}
+function lastDoneOf(key){
+  var s=load().sessions;
+  for(var i=s.length-1;i>=0;i--) if(s[i].day===key) return s[i].date;
+  return null;
+}
+function sessVolume(sess){
+  var v=0;
+  for(var id in sess.entries){
+    var arr=sess.entries[id];
+    for(var i=0;i<arr.length;i++) v+=num(arr[i].w)*num(arr[i].r);
+  }
+  return v;
+}
+function renderHome(){
+  var now=new Date();
+  $("todayLbl").textContent=DAYS_SK[now.getDay()]+" · "+now.getDate()+". "+MON_SK[now.getMonth()];
+  renderWarn();
+
+  var nk=nextDayKey(), nd=dayByKey(nk);
+  $("nextNm").textContent=nd.name;
+  var ld=lastDoneOf(nk);
+  $("nextMt").textContent=nd.sub+(ld?"  ·  naposledy "+fmtShort(ld):"  ·  ešte neodtrénované");
+  $("nextBtn").onclick=function(){startSession(nk)};
+
+  var g=$("dayGrid"); g.innerHTML="";
+  PLAN.forEach(function(d){
+    var b=document.createElement("button");
+    b.className="dbtn";
+    var l=lastDoneOf(d.key);
+    b.innerHTML='<div class="nm">'+d.name+'</div><div class="mt">'+(l?fmtShort(l):"—")+'</div>';
+    b.onclick=function(){startSession(d.key)};
+    g.appendChild(b);
+  });
+
+  var s=load().sessions.slice(-3).reverse();
+  $("homeHist").innerHTML = s.length ? "" :
+    '<div class="empty">Zatiaľ nič. Vyber tréning hore a začni zapisovať — apka si potom pri každom cviku sama pamätá, kde si skončil.</div>';
+  s.forEach(function(x){ $("homeHist").appendChild(histRow(x)) });
+}
+function histRow(sess){
+  var b=document.createElement("button");
+  b.className="hrow";
+  var d=dayByKey(sess.day);
+  b.innerHTML='<div><div class="d">'+fmtDate(sess.date)+'</div><div class="n">'+(d?d.name:sess.day)+'</div></div>'+
+              '<div class="v">'+nice(Math.round(sessVolume(sess)))+'<small>kg objem</small></div>';
+  b.onclick=function(){ curDet=sess.id; renderDetail(); show("det") };
+  return b;
+}
+
+/* ============ TRÉNING ============ */
+function startSession(key){
+  var d=dayByKey(key);
+  cur={id:"s"+Date.now(),date:new Date().toISOString(),day:key,entries:{}};
+  d.ex.forEach(function(ex){
+    var arr=[],sg=suggest(ex);
+    for(var i=0;i<ex.s;i++) arr.push({w:sg.w===""?"":nice(sg.w),r:"",rir:"",done:false});
+    cur.entries[ex.id]=arr;
+  });
+  renderSession();
+  show("sess");
+}
+function renderSession(){
+  var d=dayByKey(cur.day);
+  $("sessDate").textContent=fmtDate(cur.date);
+  $("sessNm").textContent=d.name;
+  $("sessSub").textContent=d.sub;
+  var list=$("exList"); list.innerHTML="";
+  d.ex.forEach(function(ex,i){ list.appendChild(exCard(ex,i+1)) });
+}
+function exCard(ex,idx){
+  var sg=suggest(ex);
+  var card=document.createElement("div");
+  card.className="card";
+
+  var head=document.createElement("div");
+  head.className="chead";
+  head.innerHTML='<div class="idx">'+idx+'</div><div style="flex:1">'+
+    '<div class="cname">'+ex.n+'</div>'+
+    '<div class="cmeta">'+ex.s+' × '+ex.lo+'–'+ex.hi+'  ·  '+ex.rir+'</div>'+
+    (ex.note?'<div class="cnote">'+ex.note+'</div>':'')+'</div>';
+  card.appendChild(head);
+
+  /* rep ladder — signature */
+  var lad=document.createElement("div");
+  lad.className="ladder";
+  var rungs='<div class="rungs">';
+  var reached = sg.kind==="first" ? -1 : (sg.kind==="up" ? ex.hi : sg.best);
+  for(var r=ex.lo;r<=ex.hi;r++){
+    var cls = r<=reached ? (r===ex.hi?"rung top":"rung on") : "rung";
+    rungs+='<div class="'+cls+'"></div>';
+  }
+  rungs+='</div>';
+  var txt,cls2="ltxt";
+  if(sg.kind==="first"){ txt="prvýkrát"; }
+  else if(sg.kind==="up"){ txt="↑ "+nice(sg.w)+" kg"; cls2="ltxt up"; }
+  else if(sg.kind==="stall"){ txt="zaseknuté"; cls2="ltxt stall"; }
+  else { txt=nice(sg.w)+" kg × "+sg.reps; }
+  lad.innerHTML=rungs+'<div class="'+cls2+'">'+txt+'</div>';
+  card.appendChild(lad);
+
+  /* set rows */
+  var box=document.createElement("div");
+  box.className="sets";
+  box.innerHTML='<div class="shead"><span>kg</span><span>opak.</span><span>RIR</span><span>✓</span></div>';
+  var arr=cur.entries[ex.id];
+  function addRow(st){
+    var row=document.createElement("div");
+    row.className="srow"+(st.done?" done":"");
+    row.appendChild(mkField(st,"w","kg"));
+    row.appendChild(mkField(st,"r",String(sg.reps)));
+    row.appendChild(mkField(st,"rir","–"));
+    var t=document.createElement("button");
+    t.className="tick"; t.textContent=st.done?"✓":"○";
+    t.setAttribute("aria-label","Označiť sériu ako hotovú");
+    t.onclick=function(){
+      st.done=!st.done;
+      row.classList.toggle("done",st.done);
+      t.textContent=st.done?"✓":"○";
+      if(st.done) startTimer(ex.rest);
+    };
+    row.appendChild(t);
+    return row;
+  }
+  arr.forEach(function(st){ box.appendChild(addRow(st)) });
+  var add=document.createElement("button");
+  add.className="addset"; add.textContent="+ séria";
+  add.onclick=function(){
+    var st={w:arr.length?arr[arr.length-1].w:"",r:"",rir:"",done:false};
+    arr.push(st);
+    box.insertBefore(addRow(st),add);
+  };
+  box.appendChild(add);
+  card.appendChild(box);
+
+  if(sg.prev){
+    var p=document.createElement("div");
+    p.style.cssText="padding:0 15px 13px;font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.02em";
+    p.textContent="naposledy "+fmtShort(sg.prev.date)+": "+sg.prev.sets.filter(function(s){return num(s.r)>0})
+      .map(function(s){return nice(num(s.w))+"×"+num(s.r)}).join("  ");
+    card.appendChild(p);
+  }
+  return card;
+}
+function mkField(st,k,ph){
+  var i=document.createElement("input");
+  i.className="fld"; i.type="text"; i.inputMode="decimal";
+  i.placeholder=ph; i.value=st[k]||"";
+  i.oninput=function(){ st[k]=i.value };
+  return i;
+}
+function finishSession(){
+  var kept=0,clean={};
+  for(var id in cur.entries){
+    var arr=cur.entries[id].filter(function(s){return num(s.r)>0});
+    if(arr.length){ clean[id]=arr.map(function(s){return {w:num(s.w),r:num(s.r),rir:s.rir||""}}); kept++; }
+  }
+  if(!kept){
+    if(!confirm("Nezapísal si ani jednu sériu. Zahodiť tréning?")) return;
+    stopTimer(); show("home"); renderHome(); return;
+  }
+  cur.entries=clean;
+  load().sessions.push(cur);
+  save(); stopTimer(); cur=null;
+  renderHome(); show("home");
+}
+
+/* ============ HISTÓRIA ============ */
+function renderHist(){
+  var s=load().sessions.slice().reverse();
+  $("histSub").textContent=s.length+" "+(s.length===1?"tréning":(s.length<5?"tréningy":"tréningov"));
+  var l=$("histList"); l.innerHTML="";
+  if(!s.length){ l.innerHTML='<div class="empty">Zatiaľ žiadne záznamy.</div>'; return; }
+  s.forEach(function(x){ l.appendChild(histRow(x)) });
+}
+function renderDetail(){
+  var s=load().sessions,sess=null;
+  for(var i=0;i<s.length;i++) if(s[i].id===curDet) sess=s[i];
+  if(!sess){ show("hist"); return; }
+  var d=dayByKey(sess.day);
+  $("detDate").textContent=fmtDate(sess.date);
+  $("detNm").textContent=d?d.name:sess.day;
+  $("detSub").textContent="Objem "+nice(Math.round(sessVolume(sess)))+" kg";
+  var l=$("detList"); l.innerHTML="";
+  (d?d.ex:[]).forEach(function(ex){
+    var arr=sess.entries[ex.id]; if(!arr) return;
+    var div=document.createElement("div");
+    div.className="detail";
+    div.innerHTML='<div class="dn">'+ex.n+'</div><div class="ds">'+
+      arr.map(function(x){return nice(x.w)+" × "+x.r+(x.rir?" @"+x.rir:"")}).join("   ·   ")+'</div>';
+    l.appendChild(div);
+  });
+  $("delSess").onclick=function(){
+    if(!confirm("Zmazať tento tréning?")) return;
+    var ss=load().sessions;
+    for(var i=0;i<ss.length;i++) if(ss[i].id===curDet){ ss.splice(i,1); break; }
+    save(); renderHist(); renderHome(); show("hist");
+  };
+}
+
+/* ============ EXPORT ============ */
+function exportCSV(){
+  var s=load().sessions;
+  if(!s.length){ alert("Nie je čo exportovať."); return; }
+  var rows=["datum;den;cvik;seria;kg;opakovania;rir"];
+  s.forEach(function(sess){
+    var d=dayByKey(sess.day);
+    (d?d.ex:[]).forEach(function(ex){
+      var arr=sess.entries[ex.id]; if(!arr) return;
+      arr.forEach(function(x,i){
+        rows.push([sess.date.slice(0,10),d.name,'"'+ex.n+'"',i+1,
+          String(x.w).replace(".",","),x.r,x.rir].join(";"));
+      });
+    });
+  });
+  var text="\uFEFF"+rows.join("\n");
+  var name="trening-"+new Date().toISOString().slice(0,10)+".csv";
+  var blob=new Blob([text],{type:"text/csv;charset=utf-8"});
+
+  /* iOS: share sheet je spoľahlivejší než sťahovanie */
+  try{
+    var file=new File([blob],name,{type:"text/csv"});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:"Tréningový denník"}).catch(function(){});
+      return;
+    }
+  }catch(e){}
+
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove() },1500);
+}
+
+/* ============ ČASOVAČ ============ */
+var tEnd=0,tInt=null,actx=null;
+function startTimer(sec){
+  tEnd=Date.now()+sec*1000;
+  $("timer").classList.add("on");
+  tickTimer();
+  if(tInt) clearInterval(tInt);
+  tInt=setInterval(tickTimer,250);
+  try{ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+}
+function tickTimer(){
+  var left=Math.round((tEnd-Date.now())/1000);
+  var el=$("tval");
+  if(left<=0){
+    el.textContent="0:00"; el.classList.add("zero");
+    if(tInt){ clearInterval(tInt); tInt=null; beep(); }
+    return;
+  }
+  el.classList.remove("zero");
+  el.textContent=Math.floor(left/60)+":"+("0"+(left%60)).slice(-2);
+}
+function stopTimer(){
+  if(tInt) clearInterval(tInt); tInt=null;
+  $("timer").classList.remove("on");
+}
+function beep(){
+  try{
+    if(!actx) return;
+    if(actx.state==="suspended") actx.resume();
+    [0,0.22].forEach(function(off){
+      var o=actx.createOscillator(),g=actx.createGain();
+      o.type="sine"; o.frequency.value=760;
+      g.gain.setValueAtTime(0.0001,actx.currentTime+off);
+      g.gain.exponentialRampToValueAtTime(0.25,actx.currentTime+off+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,actx.currentTime+off+0.16);
+      o.connect(g); g.connect(actx.destination);
+      o.start(actx.currentTime+off); o.stop(actx.currentTime+off+0.18);
+    });
+  }catch(e){}
+}
+
+/* ============ SPODNÁ LIŠTA ============ */
+function renderBar(){
+  var b=$("barin"); b.innerHTML="";
+  function add(label,fn,ghost){
+    var el=document.createElement("button");
+    el.className="btn"+(ghost?" ghost":"");
+    el.textContent=label; el.onclick=fn; b.appendChild(el);
+  }
+  if(view==="home"){ $("bar").classList.add("hide"); return; }
+  $("bar").classList.remove("hide");
+  if(view==="sess"){
+    add("Späť",function(){
+      if(confirm("Opustiť tréning bez uloženia?")){ stopTimer(); cur=null; renderHome(); show("home") }
+    },true);
+    add("Uložiť tréning",finishSession);
+  } else if(view==="hist"){
+    add("Späť",function(){ renderHome(); show("home") },true);
+  } else if(view==="det"){
+    add("Späť",function(){ renderHist(); show("hist") },true);
+  }
+}
+
+/* ============ ŠTART ============ */
+$("toHist").onclick=function(){ renderHist(); show("hist") };
+$("toExport").onclick=exportCSV;
+$("toExport2").onclick=exportCSV;
+$("wipe").onclick=function(){
+  if(!confirm("Naozaj vymazať celú históriu? Toto sa nedá vrátiť.")) return;
+  memory={sessions:[]}; save(); renderHist(); renderHome();
+};
+$("tstop").onclick=stopTimer;
+$("tplus").onclick=function(){ tEnd+=30000; if(!tInt) tInt=setInterval(tickTimer,250); tickTimer() };
+
+load(); renderHome(); show("home");
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load",function(){
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
